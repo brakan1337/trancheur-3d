@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  compilation:
+    name: ${{ matrix.nom }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - nom: GCC (Linux)
+            os: ubuntu-latest
+            cxx: g++
+            options: ""
+          - nom: Clang (Linux)
+            os: ubuntu-latest
+            cxx: clang++
+            options: ""
+          - nom: MSVC (Windows)
+            os: windows-latest
+            cxx: cl
+            options: ""
+          - nom: GCC avec AddressSanitizer et UBSan
+            os: ubuntu-latest
+            cxx: g++
+            options: -DTRANCHEUR_SANITIZERS=ON
+    steps:
+      - uses: actions/checkout@v4
+      - uses: seanmiddleditch/gha-setup-ninja@v5
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Configuration
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} ${{ matrix.options }}
+      - name: Compilation (avertissements bloquants)
+        run: cmake --build build
+      - name: Tests
+        run: ctest --test-dir build --output-on-failure
+      - name: De la pièce au G-code
+        run: |
+          ./build/trancheur --demo bague.stl
+          ./build/trancheur bague.stl -o bague.gcode --apercu apercu.svg --couches 0,25,48,100
+        shell: bash
+      - name: Mesure de vitesse (1 million de triangles)
+        if: matrix.options == ''
+        run: ./build/banc 1000
+        shell: bash

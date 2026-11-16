@@ -1,0 +1,4 @@
+build/
+*.stl
+*.gcode
+!docs/*.svg
